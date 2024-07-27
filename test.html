@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"/>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"/>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"/>
+    <title>Simple Chat App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1b1b2f; /* Dark purple background color */
+        }
+
+        .container {
+            width: 60%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #282846;
+            background-color: #282846;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            color: #e0e0e0; /* Light text color */
+        }
+
+        .chat-header {
+            padding: 15px;
+            background-color: #343a6e; /* Darker header background */
+            color: #e0e0e0;
+            text-align: center;
+            border-bottom: 1px solid #282846;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            background-color: #282846;
+            overflow-y: auto;
+            color: #e0e0e0; /* Light text color for messages */
+        }
+
+        .message {
+            position: relative;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #3c3c68;
+            border-radius: 5px;
+            max-width: 70%;
+            flex: 1;
+            word-wrap: break-word;
+            word-break: break-word;
+            color: #e0e0e0; /* Light text color for individual messages */
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .message button img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .chat-input {
+            display: flex;
+            border-top: 1px solid #282846;
+            height: 50px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background-color: #1b1b2f;
+            color: #e0e0e0;
+            border-radius: 0;
+        }
+
+        .chat-input input::placeholder {
+            color: #b0b0b0; /* Placeholder text color */
+        }
+
+        .chat-input button {
+            padding: 10px;
+            border: none;
+            background-color: #7b2cbf;
+            color: white;
+            cursor: pointer;
+        }
+
+        .chat-input button:hover {
+            background-color: #6a23a8; /* Slightly darker purple on hover */
+        }
+
+        .bubble {
+            display: flex;
+        }
+
+        input:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="chat-header">SmartSign Translator</div>
+    <div class="chat-messages" id="chat-messages">
+        <div class="bubble">
+            <div class="message">
+                <span>Halo</span>
+                <span onclick="playText(event)" class="material-symbols-outlined">play_circle</span>
+            </div>
+        </div>
+        <div class="bubble">
+            <div class="message">
+                <span>Silahkan tunjukan bahasa isyarat</span>
+                <span onclick="playText(event)" class="material-symbols-outlined">play_circle</span>
+            </div>
+        </div>
+    </div>
+    <div class="chat-input">
+        <input type="text" id="chat-input" placeholder="Type a message">
+        <button onclick="startMicrophone()">
+            <span id="mic" class="material-symbols-outlined">mic</span>
+        </button>
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"
+        integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO"
+        crossorigin="anonymous"></script>
+<script>
+    const socket = io()
+
+    socket.emit('join_room', {'room': 'cam-data'})
+
+    socket.on('connect', () => {
+        console.log('Connected to server');
+        socket.send('Hello, server! this is web');
+    })
+
+    socket.on('response', function (res) {
+        console.log('Message from server:', res);
+    });
+
+    let tempWord = "";
+    socket.on("receive-word", data => {
+        if (data.word !== tempWord && data.word !== "No Hand Detected") {
+            if ('speechSynthesis' in window) {
+                let msg = new SpeechSynthesisUtterance(data.word);
+                msg.lang = 'id-ID'
+                window.speechSynthesis.speak(msg);
+            }
+            let input = document.getElementById('chat-input');
+            let message = data.word.trim();
+            createBubble(message, true)
+            input.value = '';
+        }
+        tempWord = data.word
+    })
+</script>
+
+<script>
+    const recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    let recognizing = false
+
+    recognition.onstart = function () {
+        recognizing = true;
+        document.getElementById("mic").innerText = 'settings_voice'
+    };
+
+    recognition.onend = function () {
+        recognizing = false
+        document.getElementById('mic').innerText = 'mic'
+    }
+
+    let tempLength;
+    recognition.onresult = function (event) {
+        const text = Array.from(event.results)
+            .map(result => result[0])
+            .map(result => result.transcript)
+            .join('')
+
+        document.getElementById('chat-input').value = text
+    };
+
+    function startMicrophone() {
+        if (recognizing) {
+            recognition.stop()
+            return
+        }
+        console.log('clicked');
+        final_transcript = '';
+        recognition.lang = "id-ID";
+        recognition.start();
+        recognizing = true
+    }
+</script>
+
+<script>
+    let reply = true
+
+    function createBubble(message, isFromCam) {
+        let messageContainer = document.getElementById('chat-messages');
+        let bubble = document.createElement('div');
+        bubble.classList.add('bubble')
+        if (isFromCam) bubble.style.justifyContent = 'end'
+
+        let newMessage = document.createElement('div');
+        newMessage.classList.add('message');
+
+        let text = document.createElement('span')
+        text.textContent = message
+
+        let play = document.createElement('span')
+        play.classList.add('material-symbols-outlined')
+        play.innerText = 'play_circle'
+        play.onclick = playText
+
+        newMessage.appendChild(text)
+        newMessage.appendChild(play)
+        bubble.appendChild(newMessage);
+        messageContainer.appendChild(bubble)
+        messageContainer.scrollTop = messageContainer.scrollHeight; // Scroll to bottom
+    }
+
+    function sendMessage() {
+        let input = document.getElementById('chat-input');
+        let message = input.value.trim();
+        if (message !== '') {
+            createBubble(message, false)
+            input.value = '';
+            reply = !reply
+            recognition.stop()
+            final_transcript = ''
+        }
+    }
+
+    function playText(event) {
+        let text = event.currentTarget.previousElementSibling.innerText
+        let msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'id-ID'
+        window.speechSynthesis.speak(msg);
+    }
+
+    // Optionally, add functionality to send message by pressing Enter key
+    document.getElementById('chat-input').addEventListener('keypress', function (event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    });
+</script>
+</body>
+</html>
